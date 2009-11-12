@@ -32,14 +32,17 @@ c local
 !      call fft_init(npw,'B')
       call calc_augregion_2(mesh(1),mesh(2),mesh(3),rini,rfin,augregion)
 
+!$omp parallel do private(iq, eikr,eikT, phipwtmp,phiaugtmp )
       do iq_wfn=1,nq_wfn
         call findq(q_wfn(1:3,iq_wfn),iq)   
         call calc_eikreikT_2
      &      (q_wfn(1:3,iq_wfn),mesh,rini,rfin,augregion,eikr,eikT)
         do isp=1,nsp
         do ib=1,nband_wfn
+!$omp critical
           write(*,"(a,i2,2i5,3f10.4,i5)")
      &         '# isp,iq_wfn,iq,q,ib=',isp,iq_wfn,iq,qtt(1:3,iq),ib
+!$omp end critical
           call calc_phi_2(isp,iq,bindx_wfn(ib),
      &         npw,mesh,rini,rfin,
      &         augregion,phipwtmp,phiaugtmp)
@@ -47,6 +50,7 @@ c local
           do i3=1,mesh(3)+1
           do i2=1,mesh(2)+1
           do i1=1,mesh(1)+1
+c  bloch function
             phipw(i1,i2,i3,ib,iq_wfn,isp)=
      &           eikr(i1,i2,i3)
      &           *phipwtmp(i1,i2,i3)
@@ -142,6 +146,7 @@ c local
 
       pi=4.0d0*atan(1.0d0)
 
+      write(*,*) 'kvec=',kvec (1:3) 
 c Calculate e^{ikr}
       do i3=1,mesh(3)+1
       do i2=1,mesh(2)+1

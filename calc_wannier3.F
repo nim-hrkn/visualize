@@ -3,6 +3,7 @@ c 080603, For plotting arbitary region, from calc_wannier
 c 071114, Takashi Miyake, from calc_wfn.F
       use m_LMTO
       use m_MLWF
+      use m_cubeformat 
       implicit none
       integer :: nq_wfn,tlat(3),nfac
       double precision :: qdum(3)
@@ -84,11 +85,12 @@ c from Bloch to Wannier
      &           wantot)
 
 c Dump phi in OpenDX format
+      outputformat='gaussiancube'
+
       write(*,*) 'dump phi'
       qdum = 0.0d0
       ang=0.529177d0
       alat_ang=alat*ang
-      outputformat='gaussiancube'
       if (outputformat.eq.'opendx') then
       call wfn2dx_2(alat_ang,plat,nsp,1,nband_wfn,qdum,bindx_wfn,
      &     mesh,rini,rfin,wanpw,wanaug,wantot)
@@ -97,9 +99,19 @@ c Dump phi in OpenDX format
       else if (outputformat.eq.'gaussiancube') then
 
       call wrt_cube(
+     i     'psi',
      i     alat,plat,nsp,1,nband_wfn,q_wfn,bindx_wfn,
-     i     mesh,rini,rfin,phipw,phiaug,phitot,
+c     i     mesh,rini,rfin,phipw,phiaug,phitot  ! for bloch orbital
+     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function 
      i     nbas,bas,nclass,iclass,zz )
+
+      call wrt_cube(
+     i     'phi',
+     i     alat,plat,nsp,1,nband_wfn,q_wfn,bindx_wfn,
+     i     mesh,rini,rfin,phipw,phiaug,phitot,  ! for bloch orbital
+c     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function 
+     i     nbas,bas,nclass,iclass,zz )
+
 
       endif 
 
@@ -140,6 +152,7 @@ cccccccccccccccccccccc
       stop 'Error in findq: cannot find q'
       end subroutine findq
 cccccccccccccccccccccc
+#if 0
       subroutine calc_phiall(nq_wfn,nband_wfn,q_wfn,bindx_wfn,
      &     npw,phipw,phiaug,phitot)
       use m_LMTO
@@ -169,7 +182,7 @@ c local
      &     eikT(npw(1)+1,npw(2)+1,npw(3)+1)
 
 
-      write(*,"(a)") '--- calc_phiall ---'
+      write(*,"(a)") '--- calc_phiall (3)---'
       call fft_init(npw,'B')
       call calc_augregion(npw(1),npw(2),npw(3),augregion)
 
@@ -187,6 +200,7 @@ c local
           do i3=1,npw(3)+1
           do i2=1,npw(2)+1
           do i1=1,npw(1)+1
+
             phipw(i1,i2,i3,ib,iq_wfn,isp)=
      &           eikr(i1,i2,i3)
      &           *phipwtmp(i1,i2,i3)
@@ -205,6 +219,7 @@ c local
         enddo !isp
       enddo !iq
       end subroutine calc_phiall
+#endif
 ccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine calc_npw(nfac,npw)
       use m_LMTO
@@ -242,6 +257,7 @@ c local
       write(*,"(a,3i6)") '# npw(1:3)=',npw(1:3)
       end subroutine calc_npw
 ccccccccccccccccccccccccccccccccccccc
+#if 0
       subroutine calc_augregion(n1,n2,n3,augregion)
       use m_LMTO
       implicit none
@@ -297,7 +313,9 @@ c local
         enddo !j1
       enddo !ibas
       end subroutine calc_augregion
+#endif
 ccccccccccccccccccccccccccccccccccccc
+#if 0
       subroutine calc_eikreikT(kvec,npw,augregion,eikr,eikT)
       use m_LMTO
       implicit none
@@ -349,7 +367,9 @@ c Calculate e^{ikT}
       enddo
 
       end subroutine calc_eikreikT
+#endif
 ccccccccccccccccccccccccccccccccccccc
+#if 0
       subroutine calc_phi(isp,iq,iband,npw,
      &     augregion,phipwtmp,phiaugtmp)
       use m_LMTO
@@ -422,6 +442,7 @@ c set plane-wave part to zero
       enddo
       enddo
       end subroutine calc_phi
+#endif
 cccccccccccccccccccccccccccccccccccc
 c Calculate wavefunction phi in the augmented region
 c
