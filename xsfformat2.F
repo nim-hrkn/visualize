@@ -4,13 +4,13 @@
 
       contains 
       subroutine wrt_xsf(
-     i     basename,
+     i     basename,vis_unit,
      i     alat,plat,nsp,nq_wfn,nband_wfn,q_wfn,bindx_wfn,
      i     mesh,rini,rfin,phipw,phiaug,phitot,
      i     natom,apos,nclass,iclass,zz )
       implicit none
 c input
-      character(*),intent(in):: basename
+      character(*),intent(in):: basename,vis_unit
       double precision,intent(in) :: alat,plat(3,3),rini(3),rfin(3)
       integer,intent(in) :: nsp,nq_wfn,nband_wfn,bindx_wfn(nband_wfn),mesh(3)
       double precision,intent(in) :: q_wfn(3,nq_wfn)
@@ -82,10 +82,22 @@ c     .    'isp',isp,'_iq',iq,'_ib',ib,'_',iband,'_ri',iimg
 
         write(ifile,'(3i5)') mesh(1:3)+1
 
+        if (vis_unit.eq.'alat') then
         r(:)= rini(:) *alat
+        else if (vis_unit.eq.'abc') then
+        r(:) = plat(:,1)*rini(1)+ plat(:,2)*rini(2)+ plat(:,3)*rini(3)
+        r= r*alat 
+        endif 
         write(ifile,'(3f20.5)')  r(1:3) 
 
+        if (vis_unit.eq.'alat') then
         r = (rfin-rini)*alat
+        else if (vis_unit.eq.'abc') then
+        r = plat(:,1)*(rfin(1)-rini(1))+ plat(:,2)*(rfin(2)-rini(2))+
+     .        plat(:,3)*(rfin(3)-rini(3))
+        r=r*alat 
+        endif
+
         idim=1
         write(ifile,'(3f20.5)') r(idim),zero,zero
         idim=2
