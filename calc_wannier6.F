@@ -252,7 +252,7 @@ c rfin -> r_rfin1
 c mesh -> mesh1
 
 c Dump phi in OpenDX format
-      outputformat='xsf'
+      call getkeyvalue(inputfile,'vis_wan_outputformat',outputformat) 
 
       write(*,*) 'dump phi'
       qdum = 0.0d0
@@ -263,7 +263,7 @@ c Dump phi in OpenDX format
      &     mesh1,r_rini1,r_rfin1,wanpw1,wanaug1,wantot1)
       call crystal2dx_2(alat_ang,plat,r_rini1,r_rfin1,
      &     nbas,bas,nclass,iclass,zz)
-      else if (outputformat.eq.'gaussiancube') then
+      else if (outputformat.eq.'cube') then
 
       call wrt_cube(
      i     'psi',
