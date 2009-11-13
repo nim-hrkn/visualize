@@ -5,22 +5,33 @@ c 071114, Takashi Miyake, from calc_wfn.F
       use m_MLWF
       use m_cubeformat 
       use m_xsfformat 
+      use keyvalue
+      use m_wfrho_abc 
+      use m_expand_mesh 
       implicit none
       integer :: nq_wfn,tlat(3),nfac
       double precision :: qdum(3)
       double precision,allocatable :: q_wfn(:,:)
       integer :: nband_wfn
       integer,allocatable :: bindx_wfn(:)
+      double complex,allocatable :: phipw0(:,:,:,:,:,:),
+     &     phiaug0(:,:,:,:,:,:),phitot0(:,:,:,:,:,:)
       double complex,allocatable :: phipw(:,:,:,:,:,:),
      &     phiaug(:,:,:,:,:,:),phitot(:,:,:,:,:,:)
       double complex, allocatable :: wanpw(:,:,:,:,:),
      &     wanaug(:,:,:,:,:),wantot(:,:,:,:,:)
-      double precision :: rini(3),rfin(3),ang,alat_ang
-      integer :: npw(3),mesh(3)
+      double precision :: rini0(3),rfin0(3),ang,alat_ang
+      integer:: rini(3),rfin(3)
+      real(8):: r_rini(3), r_rfin(3)
+      integer :: npw(3),mesh(3),mesh0(3)
       integer :: iq,ib
       logical :: lrho
+      integer:: i
 
       character(20):: outputformat ='none'
+      character(20)::inputfile='GWinput'
+
+
 
 c Read variables from DATA4GW, CphiGeig, QGphi, QGcou
       call setup_LMTO()
@@ -44,25 +55,67 @@ c Read number of bands and k-points for plotting phi
       allocate(q_wfn(3,nq_wfn))
       q_wfn(1:3,1:nqbz) = qtt(1:3,1:nqbz)
 
-      read(*,*) nband_wfn
+c      read(*,*) nband_wfn
+       call getkeyvalue(inputfile,'vis.mlwf.n',nband_wfn)
+
       allocate(bindx_wfn(nband_wfn))
-      read(*,*) bindx_wfn(1:nband_wfn)
-!      do ib=1,nband_wfn
-!      write(*,*)ib,bindx_wfn(ib)
-!      enddo
+c      read(*,*) bindx_wfn(1:nband_wfn)
+      call getkeyvalue(inputfile,'vis.mlwf.band',bindx_wfn,size=nband_wfn) 
+      do ib=1,nband_wfn
+      write(*,*)ib,bindx_wfn(ib)
+      enddo
       write(6,"(a,2i5)") '### nq_wfn,nband_wfn=',nq_wfn,nband_wfn
       if (nband_wfn.gt.nband) stop 'nband_wfn.gt.nband !'
-      read(*,*) tlat(1:3)
+c      read(*,*) tlat(1:3)
+      call getkeyvalue( inputfile, 'vis.mlwf.tvec',   tlat,size=3)
       write(*,"(a,3i5)")'### tlat',tlat
 
 
 c Setup FFT mesh
-      read(*,*)nfac
+c      read(*,*)nfac
+      call getkeyvalue(inputfile, 'vis.mlwf.interpolation', nfac,default=1) 
+
       call calc_npw(nfac,npw)
 c Allocate phi
-      read(*,*)mesh(1),mesh(2),mesh(3)
-      read(*,*)rini(1),rini(2),rini(3)
-      read(*,*)rfin(1),rfin(2),rfin(3)
+c      read(*,*)mesh(1),mesh(2),mesh(3)
+c      read(*,*)rini(1),rini(2),rini(3)
+c      read(*,*)rfin(1),rfin(2),rfin(3)
+      call getkeyvalue(inputfile,'vis.mlwf.mesh',  mesh0,size=3)
+      call getkeyvalue(inputfile,'vis.mlwf.lbound',rini0,size=3)
+      call getkeyvalue(inputfile,'vis.mlwf.ubound',rfin0,size=3)
+      write(*,*) 'mesh=',mesh0
+      write(*,*) 'lbound=',rini0
+      write(*,*) 'ubound=',rfin0
+
+
+      allocate(phipw0(mesh0(1)+1,mesh0(2)+1,mesh0(3)+1,
+     &         nband_wfn,nq_wfn,nsp))
+      allocate(phiaug0(mesh0(1)+1,mesh0(2)+1,mesh0(3)+1,
+     &         nband_wfn,nq_wfn,nsp))
+      allocate(phitot0(mesh0(1)+1,mesh0(2)+1,mesh0(3)+1,
+     &         nband_wfn,nq_wfn,nsp))
+
+      call calc_phiall_abc(nq_wfn,nband_wfn,q_wfn,bindx_wfn,
+     &     npw,mesh0,
+     o     phipw0,phiaug0,phitot0)
+
+
+c ... copy 0 -> ''
+      do i=1,3
+        rini(i)=floor(rini0(i))
+        rfin(i)=ceiling(rfin0(i))
+      enddo
+      write(*,*) 'new lbound=',rini
+      write(*,*) 'new ubound=',rfin
+
+c .... for plot 
+      r_rini= rini
+      r_rfin = rfin
+
+      do i=1,3
+         mesh(i)= (rfin(i)-rini(i))*mesh0(i)
+      enddo 
+
       allocate(phipw(mesh(1)+1,mesh(2)+1,mesh(3)+1,
      &         nband_wfn,nq_wfn,nsp))
       allocate(phiaug(mesh(1)+1,mesh(2)+1,mesh(3)+1,
@@ -70,15 +123,17 @@ c Allocate phi
       allocate(phitot(mesh(1)+1,mesh(2)+1,mesh(3)+1,
      &         nband_wfn,nq_wfn,nsp))
 
-      call calc_phiall_2(nq_wfn,nband_wfn,q_wfn,bindx_wfn,
-     &     npw,mesh,rini,rfin,phipw,phiaug,phitot)
+      call expand_mesh(
+     i    nq_wfn,nband_wfn,q_wfn,nsp,
+     i    rini,rfin, 
+     o    mesh0, phipw0,phiaug0,phitot0, 
+     o    mesh, phipw,phiaug,phitot )
 
 #if 0
       call write_mesh2d(nq_wfn,nband_wfn,nsp,
-     i   rini, rfin, 
+     i   r_rini, r_rfin, 
      i   mesh, phipw,phiaug,phitot )
 #endif
-
 
 c from Bloch to Wannier
       allocate(wanpw(mesh(1)+1,mesh(2)+1,mesh(3)+1,nband_wfn,nsp))
@@ -109,29 +164,29 @@ c Dump phi in OpenDX format
      i     'psi',
      i     alat,plat,nsp,1,nband_wfn,q_wfn,bindx_wfn,
 c     i     mesh,rini,rfin,phipw,phiaug,phitot  ! for bloch orbital
-     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function 
+     i     mesh,r_rini,r_rfin,wanpw,wanaug,wantot,  ! for wannier function 
      i     nbas,bas,nclass,iclass,zz )
 
       call wrt_cube(
      i     'phi',
      i     alat,plat,nsp,1,nband_wfn,q_wfn,bindx_wfn,
-     i     mesh,rini,rfin,phipw,phiaug,phitot,  ! for bloch orbital
+     i     mesh,r_rini,r_rfin,phipw,phiaug,phitot,  ! for bloch orbital
 c     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function 
      i     nbas,bas,nclass,iclass,zz )
 
-      else i f(outputformat.eq.'xsf') then
+      else if(outputformat.eq.'xsf') then
 
       call wrt_xsf(
      i     'psi',
      i     alat_ang,plat,nsp,1,nband_wfn,q_wfn,bindx_wfn,
 c     i     mesh,rini,rfin,phipw,phiaug,phitot  ! for bloch orbital
-     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function 
+     i     mesh,r_rini,r_rfin,wanpw,wanaug,wantot,  ! for wannier function 
      i     nbas,bas,nclass,iclass,zz )
 
       call wrt_xsf(
      i     'phi',
      i     alat_ang,plat,nsp,1,nband_wfn,q_wfn,bindx_wfn,
-     i     mesh,rini,rfin,phipw,phiaug,phitot,  ! for bloch orbital
+     i     mesh,r_rini,r_rfin,phipw,phiaug,phitot,  ! for bloch orbital
 c     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function 
      i     nbas,bas,nclass,iclass,zz )
 
@@ -139,11 +194,13 @@ c     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function
       endif 
 
       write(*,*) 'dump rho? [T/F]'
-      read(*,*) lrho
+c      read(*,*) lrho
+       lrho=.false. 
+       write(*,*) lrho 
 !      if (lrho) call calc_rho(nq_wfn,nband_wfn,npw,phipw,phiaug,phitot)
 !      if (lrho) call calc_rho(1,nband_wfn,npw,wanpw,wanaug,wantot)
       if (lrho) call calc_rho_2
-     &(alat_ang,nq_wfn,nband_wfn,mesh,rini,rfin,wanpw,wanaug,wantot)
+     &(alat_ang,nq_wfn,nband_wfn,mesh,r_rini,r_rfin,wanpw,wanaug,wantot)
       deallocate(phipw)
       deallocate(phiaug)
       deallocate(phitot)
