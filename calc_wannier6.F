@@ -103,6 +103,8 @@ c      read(*,*)rfin(1),rfin(2),rfin(3)
       write(*,*) 'lbound=',r_rini0
       write(*,*) 'ubound=',r_rfin0
 
+      call getkeyvalue(inputfile,'vis_wan_outputformat',outputformat) 
+
 
       allocate(phipw0(mesh0(1)+1,mesh0(2)+1,mesh0(3)+1,
      &         nband_wfn,nq_wfn,nsp))
@@ -252,7 +254,6 @@ c rfin -> r_rfin1
 c mesh -> mesh1
 
 c Dump phi in OpenDX format
-      call getkeyvalue(inputfile,'vis_wan_outputformat',outputformat) 
 
       write(*,*) 'dump phi'
       qdum = 0.0d0
@@ -279,7 +280,7 @@ c     i     mesh,rini,rfin,phipw,phiaug,phitot  ! for bloch orbital
 c     i     mesh,rini,rfin,wanpw,wanaug,wantot,  ! for wannier function 
      i     nbas,bas,nclass,iclass,zz )
 
-      else if(outputformat.eq.'xsf') then
+      else !--- if(outputformat.eq.'xsf') then, default
 
       call wrt_xsf(
      i     'psi', vis_unit,
